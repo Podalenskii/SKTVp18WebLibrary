@@ -8,7 +8,9 @@ package servlets;
 import entity.Book;
 import entity.History;
 import entity.Reader;
+import entity.Role;
 import entity.User;
+import entity.UserRoles;
 import java.io.IOException;
 import java.util.Date;
 import java.util.List;
@@ -22,7 +24,9 @@ import javax.servlet.http.HttpSession;
 import session.BookFacade;
 import session.HistoryFacade;
 import session.ReaderFacade;
+import session.RoleFacade;
 import session.UserFacade;
+import session.UserRolesFacade;
 import utils.EncryptPass;
 
 /**
@@ -30,18 +34,64 @@ import utils.EncryptPass;
  * @author user
  */
 @WebServlet(name = "AdminController", urlPatterns = {
-    
     "/newBook",
     "/addBook",
-    "/listReaders",
-    
-    
-})
+    "/listReaders",})
 public class AdminController extends HttpServlet {
-@EJB BookFacade bookFacade;
-@EJB ReaderFacade readerFacade;
-@EJB HistoryFacade historyFacade;
-@EJB UserFacade userFacade;
+
+    @EJB
+    BookFacade bookFacade;
+    @EJB
+    ReaderFacade readerFacade;
+    @EJB
+    HistoryFacade historyFacade;
+    @EJB
+    UserFacade userFacade;
+    @EJB
+    RoleFacade roleFacade;
+    @EJB
+    UserRolesFacade userRolesFacade;
+
+    /**
+     *
+     * @throws ServletException
+     */
+    @Override
+    public void init() throws ServletException {
+        List<User> listUsers = userFacade.findAll();
+        if (!listUsers.isEmpty()) return;
+       
+        Reader reader = new Reader("Vladimir", "Podalenskii", "admin@podalenskii.ee");
+        readerFacade.create(reader);
+        String password = "123123";
+        EncryptPass ep = new EncryptPass();
+        String salts = ep.getSalts();
+        password = ep.getEncryptPass(password, salts);
+        User user = new User("admin", password, salts, reader);
+        userFacade.create(user);
+
+        UserRoles userRoles = new UserRoles();
+        userRoles.setUser(user);
+
+        Role role = new Role();
+        role.setRoleName("ADMIN");
+
+        roleFacade.create(role);
+        userRoles.setRole(role);
+        userRolesFacade.create(userRoles);
+
+        role.setRoleName("MANAGER");
+        roleFacade.create(role);
+        userRoles.setRole(role);
+        userRolesFacade.create(userRoles);
+
+        role.setRoleName("USER");
+        roleFacade.create(role);
+        userRoles.setRole(role);
+        userRolesFacade.create(userRoles);
+
+    }
+
     /**
      * Processes requests for both HTTP <code>GET</code> and <code>POST</code>
      * methods.
@@ -57,24 +107,24 @@ public class AdminController extends HttpServlet {
         request.setCharacterEncoding("UTF-8");
         //Защита ресурсов
         HttpSession session = request.getSession(false);
-        if(session == null){
+        if (session == null) {
             request.setAttribute("info", "У вас нет прав, войдите");
             request.getRequestDispatcher("/WEB-INF/showLogin.jsp")
-                        .forward(request, response);
-            return;    
+                    .forward(request, response);
+            return;
         }
         User user = (User) session.getAttribute("user");
-        if(user == null){
+        if (user == null) {
             request.setAttribute("info", "У вас нет прав, войдите");
             request.getRequestDispatcher("/WEB-INF/showLogin.jsp")
-                        .forward(request, response);
-            return;   
+                    .forward(request, response);
+            return;
         }
-        if(!"admin".equals(user.getLogin())){
+        if (!"admin".equals(user.getLogin())) {
             request.setAttribute("info", "У вас нет прав, войдите");
             request.getRequestDispatcher("/WEB-INF/showLogin.jsp")
-                        .forward(request, response);
-            return;   
+                    .forward(request, response);
+            return;
         }
         String path = request.getServletPath();
         switch (path) {
@@ -94,19 +144,16 @@ public class AdminController extends HttpServlet {
                 request.getRequestDispatcher("/index.jsp")
                         .forward(request, response);
                 break;
-            
-            
-            case "/listReaders":    
+
+            case "/listReaders":
                 List<Reader> listReaders = readerFacade.findAll();
                 request.setAttribute("listReaders", listReaders);
                 request.getRequestDispatcher("/listReaders.jsp")
                         .forward(request, response);
                 break;
-            
-            
-            
+
         }
-        
+
     }
 
     // <editor-fold defaultstate="collapsed" desc="HttpServlet methods. Click on the + sign on the left to edit the code.">
@@ -147,6 +194,4 @@ public class AdminController extends HttpServlet {
     public String getServletInfo() {
         return "Short description";
     }// </editor-fold>
-
-}
 
